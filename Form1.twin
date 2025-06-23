@@ -1,0 +1,567 @@
+[Description("ListView SubItem Controls Demo Form")]
+[FormDesignerId("E9C66E03-6CBE-4103-AF20-752C933CBB72")]
+[PredeclaredId]
+Class Form1
+#Region "Readme"
+/************************************************************************************************
+ListViewSubItemCtls v1.0
+Undocumented ListView SubItem Controls Demo
+by Jon Johnson, porting a project by Timo Kunze.
+
+https://github.com/fafalone/ListViewSubItemControls
+
+**Requirements** 
+- Windows 7+ (Vista could be supported by switching the IListView version, but it's not done 
+    here in v1.0).
+- Windows Development Library for twinBASIC v9.1+
+- Common Controls 6.0 enabled by manifest
+
+This project has been my white whale. Back in 2015 I started a series of articles on undocumented 
+ListView features available in Windows Vista+: Footer Items, Subsetted Groups, Groups in Virtual 
+Mode, Column Backcolors, and Explorer-style selection. But the coolest undocumented feature of all 
+was the automatic subitem controls shown in the picture above. I just could not get it. The work 
+was based on a fully working project by Timo Kunze, but even though I had this C++ sample that 
+worked, every effort to port it to VB6 failed. Weeks were spent on it. Then at least half a dozen 
+major efforts over the following decade of a few days. Not willing to give it up, I tried again 
+starting 2 days ago, only this time instead of trying to fix the giant mess of spaghetti code packed 
+with debugging stuff and the remnants of numerous different approaches, I started over completely 
+from scratch and tried to make the port as line-by-line identical as possible...
+
+🥳🥳 ** IT WORKED ** 🥳🥳
+
+I'll no doubt be digging into the old code to find out exactly what I could have possibly missed in 
+all the other failed attempts, which only ever got as far as glitched rendering of one or two controls 
+followed by a hard crash. But the bottom line is now every control is working perfectly! In both 32 
+and 64bit! In future versions I'll explore the control types not used in Timo's demo.
+
+**Changelog**
+- v1.0 (22 June 2025) - Initial release
+
+*************************************************************************************************/
+#End Region
+
+    Implements ISubItemCallback
+    
+    Private Const sCol0 As String = "Column 1"
+    Private Const sCol1 As String = "Column 2"
+    Private Const sCol2 As String = "Column 3"
+        
+    Private hLV As LongPtr
+    Private ImageList As IImageList
+     
+    
+    Private Sub Form_Load() Handles Form.Load
+        Dim dwFlags As Long = WS_CHILD Or WS_VISIBLE Or WS_CLIPSIBLINGS Or WS_CLIPCHILDREN Or LVS_ICON Or LVS_SHOWSELALWAYS Or LVS_AUTOARRANGE Or LVS_ALIGNTOP
+        Dim dwFlagsEx As Long = WS_EX_CLIENTEDGE
+        
+        hLV = CreateWindowEx(dwFlagsEx, WC_LISTVIEW, vbNullString, dwFlags, 0, 0, pbLV.ScaleWidth, pbLV.ScaleHeight, _
+          pbLV.hWnd, 0, App.hInstance, ByVal 0)
+        
+        Dim dw As Long = LVS_EX_DOUBLEBUFFER Or LVS_EX_FULLROWSELECT
+        SendMessage(hLV, LVM_SETEXTENDEDLISTVIEWSTYLE, ByVal dw, ByVal dw)
+        SetWindowTheme(hLV, "Explorer", vbNullString)
+        SendMessage(hLV, LVM_SETVIEW, LV_VIEW_TILE, ByVal 0&)
+        Dim tileInfo As LVTILEVIEWINFO
+        tileInfo.cbSize = LenB(Of LVTILEVIEWINFO)
+        tileInfo.dwMask = LVTVIM_COLUMNS
+        tileInfo.cLines = 2
+        SendMessage(hLV, LVM_SETTILEVIEWINFO, 0, tileInfo)
+        
+        Dim pLvw As IListView
+        SendMessage(hLV, LVM_QUERYINTERFACE, VarPtr(IID_IListView), pLvw)
+        If pLvw IsNot Nothing Then
+            pLvw.SetSubItemCallback(Me)
+            Set pLvw = Nothing
+        End If
+        
+        InsertColumns()
+        InsertItems()
+    End Sub
+    
+    Private Sub Form_Unload(Cancel As Integer) Handles Form.Unload
+        DestroyWindow hLV
+        Set ImageList = Nothing
+    End Sub
+    
+    Private Sub InsertColumns()
+        Dim lvc As LVCOLUMN
+        lvc.Mask = LVCF_TEXT Or LVCF_WIDTH
+        lvc.pszText = StrPtr(sCol0)
+        lvc.cchTextMax = Len(sCol0)
+        lvc.CX = 200
+        SendMessage(hLV, LVM_INSERTCOLUMN, 0, lvc)
+        
+        lvc.Mask = LVCF_TEXT Or LVCF_WIDTH
+        lvc.pszText = StrPtr(sCol1)
+        lvc.cchTextMax = Len(sCol1)
+        lvc.CX = 200
+        SendMessage(hLV, LVM_INSERTCOLUMN, 1, lvc)
+                
+        lvc.Mask = LVCF_TEXT Or LVCF_WIDTH
+        lvc.pszText = StrPtr(sCol2)
+        lvc.cchTextMax = Len(sCol2)
+        lvc.CX = 200
+        SendMessage(hLV, LVM_INSERTCOLUMN, 2, lvc)
+                
+    End Sub
+    
+    Private Sub InsertItems()
+        SHGetImageList(SHIL_SMALL, IID_IImageList, ImageList)
+        ListView_SetImageList(hLV, ObjPtr(ImageList), LVSIL_SMALL)
+        
+        Dim sItemText As String
+        Dim itemCount As Long = 9
+        Dim uCol(1) As Long
+        uCol(0) = 1
+        uCol(1) = 2
+        Dim item As LVITEM
+        item.Mask = LVIF_COLUMNS
+        item.cColumns = 2
+        item.puColumns = VarPtr(uCol(0))
+        
+        Dim pv As PROPVARIANT
+        Dim pBuffer As LongPtr
+        
+        For i As Long = 0 To itemCount - 1
+            LVInsertItem(LVIF_IMAGE Or LVIF_TEXT, i, "Item " & (i + 1), 0, 0, i Mod 3, 0)
+            LVSetItemText(i, 2, "Item " & (i + 1) & ", Subitem 2")
+            Select Case i
+                Case 0
+                    LVSetItemText(0, 1, "This text" & vbCrLf & "consists of" & vbCrLf & "3 lines")  ' multi-line edit
+                Case 1
+                    LVSetItemText(1, 1, "46") ' percent bar 
+                Case 2
+                    LVSetItemText(2, 1, "3") ' rating 
+                Case 3
+                    LVSetItemText(3, 1, "Some Text") ' single-line edit 
+                Case 4
+                    LVSetItemText(4, 1, "-1") ' boolean check mark 
+                Case 5
+                    LVSetItemText(5, 1, "-1") ' checkbox drop-down list 
+                Case 6
+                    PropVariantInit(pv)
+                    pv.vt = VT_FILETIME
+                    GetSystemTimeAsFileTime(VarPtr(pv.pVar))
+                    If (SUCCEEDED(PropVariantToStringAlloc(pv, pBuffer)) And pBuffer) Then
+                        LVSetItemText(6, 1, pBuffer) ' calendar
+                        CoTaskMemFree(pBuffer)
+                        pBuffer = 0
+                    End If
+                Case 7
+                    LVSetItemText(7, 1, "2") ' drop-down list 
+                Case 8
+                    LVSetItemText(8, 1, "<a id=""Open http://www.timosoft-software.de"">http://www.timosoft-software.de</a>")  ' hyperlink 
+            End Select
+            item.iItem = i
+            SendMessage(hLV, LVM_SETITEM, 0, item)
+        Next
+        SendMessage(hLV, LVM_SETVIEW, LV_VIEW_DETAILS, ByVal 0&)
+    End Sub
+    
+    Private Sub ISubItemCallback_GetSubItemTitle(ByVal subitemIndex As Long, ByVal lpszBuffer As LongPtr, ByVal BufferSize As Long) Implements ISubItemCallback.GetSubItemTitle
+        Err.ReturnHResult = E_NOTIMPL
+    End Sub
+    
+    Private Sub ISubItemCallback_BeginGroupEdit(ByVal groupIndex As Long, requiredInterface As UUID, ppObject As LongPtr) Implements ISubItemCallback.BeginGroupEdit
+        Err.ReturnHResult = E_NOINTERFACE
+    End Sub
+    
+    Private Sub ISubItemCallback_BeginSubItemEdit(ByVal itemIndex As Long, ByVal subItemIndex As Long, ByVal mode As Long, requiredInterface As UUID, ppObject As LongPtr) Implements ISubItemCallback.BeginSubItemEdit
+        'NOTE :: IN EXAMPLE, THIS IS CALLED BY GetSubItemControl, KEEP CODE IN SYNC!
+        If VarPtr(ppObject) = 0 Then
+            Err.ReturnHResult = E_POINTER
+            Exit Sub
+        End If
+        If subItemIndex <> 1 Then
+            Err.ReturnHResult = E_NOINTERFACE
+            Exit Sub
+        End If
+        
+        Dim hr As Long = E_NOINTERFACE
+        Dim pPropertyDescription As IPropertyDescription
+        Dim propertyValue As PROPVARIANT
+        Dim pPropertyValue As LongPtr = VarPtr(propertyValue)
+        
+        Select Case itemIndex
+            Case 0
+                hr = CoCreateInstance(CLSID_CInPlaceMLEditBoxControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Generic.String", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 1
+                hr = CoCreateInstance(CLSID_CCustomDrawPercentFullControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+            Case 2
+                hr = CoCreateInstance(CLSID_CRatingControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+            Case 3
+                If IsEqualIID(requiredInterface, IID_IDrawPropertyControl) Then
+                    hr = CoCreateInstance(CLSID_CStaticPropertyControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                Else
+                    hr = CoCreateInstance(CLSID_CInPlaceEditBoxControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                End If
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Generic.String", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 4, 5
+                hr = CoCreateInstance(CLSID_CBooleanControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Generic.Boolean", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 6
+                hr = CoCreateInstance(CLSID_CInPlaceCalendarControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Generic.DateTime", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 7
+                hr = CoCreateInstance(CLSID_CInPlaceDropListComboControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Photo.MeteringMode", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 8
+                hr = CoCreateInstance(CLSID_CHyperlinkControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+        End Select
+        If SUCCEEDED(hr) Then
+            Dim pControl As IPropertyControlBase
+            vbaObjSetAddref(pControl, ppObject)
+            Dim themeAppName As String
+            Dim themeIDList As String
+            Dim pSubAppNameBuffer(299) As Integer
+            Dim pSubAppName As LongPtr = VarPtr(pSubAppNameBuffer(0))
+            Dim valueSubAppName As Integer = DCast(Of Integer)(GetPropW(hLV, StrPtr("#43281")))
+            If valueSubAppName Then
+                GetAtomNameW(valueSubAppName, VarPtr(pSubAppNameBuffer(0)), 300)
+                If (lstrlenW(pSubAppNameBuffer(0)) = 1) And (pSubAppNameBuffer(0) = Asc("$")) Then
+                    pSubAppNameBuffer(0) = 0
+                End If
+            Else
+                pSubAppName = 0
+            End If
+            themeAppName = LPWSTRtoStr(pSubAppName, False)
+            Dim pSubIDListBuffer(299) As Integer
+            Dim pSubIDList As LongPtr = VarPtr(pSubIDListBuffer(0))
+            Dim valueSubIDList As Integer = DCast(Of Integer)(GetPropW(hLV, StrPtr("#43280")))
+            If valueSubIDList Then
+                GetAtomNameW(valueSubIDList, VarPtr(pSubIDListBuffer(0)), 300)
+                If (lstrlenW(pSubIDListBuffer(0)) = 1) And (pSubIDListBuffer(0) = Asc("$")) Then
+                    pSubIDListBuffer(0) = 0
+                End If
+            Else
+                pSubIDList = 0
+            End If
+            themeIDList = LPWSTRtoStr(pSubIDList, False)
+            Dim hFont As LongPtr = SendMessage(hLV, WM_GETFONT, 0, ByVal 0)
+            Dim textColor As Long = DCast(Of Long)(SendMessage(hLV, LVM_GETTEXTCOLOR, 0, 0))
+            If textColor = CLR_NONE Then
+                textColor = GetSysColor(COLOR_WINDOWTEXT)
+            End If
+            Dim pBuffer As LongPtr = HeapAlloc(GetProcessHeap(), 0, (1024 + 1) * 2 /* sizeof(WCHAR) */)
+            If pBuffer Then
+                Dim item As LVITEMW
+                item.iSubItem = subItemIndex
+                item.cchTextMax = 1024
+                item.pszText = pBuffer
+                SendMessage(hLV, LVM_GETITEMTEXTW, itemIndex, item)
+                If (itemIndex = 1) Or (itemIndex = 2) Or (itemIndex = 7) Then
+                    Dim tmp As Variant
+                    PropVariantInit(tmp)
+                    InitPropVariantFromString(item.pszText, tmp)
+                    PropVariantChangeType(ByVal pPropertyValue, tmp, 0, VT_UI4)
+                    PropVariantClear(tmp)
+                ElseIf (itemIndex = 4) Or (itemIndex = 5) Then
+                    Dim tmp2 As Variant
+                    PropVariantInit(tmp2)
+                    InitPropVariantFromString(item.pszText, tmp2)
+                    PropVariantChangeType(ByVal pPropertyValue, tmp2, 0, VT_BOOL)
+                    PropVariantClear(tmp2)
+                ElseIf (itemIndex = 6) Then
+                    Dim tmp3 As Variant
+                    PropVariantInit(tmp3)
+                    InitPropVariantFromString(item.pszText, tmp3)
+                    PropVariantChangeType(ByVal pPropertyValue, tmp3, 0, VT_FILETIME)
+                    PropVariantClear(tmp3)
+                Else
+                    InitPropVariantFromStringPtr(item.pszText, ByVal pPropertyValue)
+                End If
+                HeapFree(GetProcessHeap(), 0, ByVal pBuffer)
+                pBuffer = 0
+            End If
+            
+            Dim pPropertyValueObj As IPropertyValue
+            Set pPropertyValueObj = New IPropertyValueImpl
+            pPropertyValueObj.InitValue(propertyValue)
+            If pPropertyDescription IsNot Nothing Then
+                pControl.Initialize(pPropertyDescription, 0)
+            End If
+            pControl.SetValue(pPropertyValueObj)
+            pControl.SetTextColor(textColor)
+            If hFont Then
+                pControl.SetFont(hFont)
+            End If
+            pControl.SetWindowTheme(StrPtr(themeAppName), StrPtr(themeIDList))
+            Set pPropertyDescription = Nothing
+        End If
+        Err.ReturnHResult = hr
+    End Sub
+    
+    Private Sub ISubItemCallback_EndGroupEdit(ByVal groupIndex As Long, ByVal mode As Long, ByVal pPropertyControl As IPropertyControl) Implements ISubItemCallback.EndGroupEdit
+        On Error Resume Next
+        If pPropertyControl Is Nothing Then
+            Err.ReturnHResult = E_POINTER
+            Exit Sub
+        End If
+        pPropertyControl.Destroy()
+        Err.ReturnHResult = Err.LastHresult
+    End Sub
+    
+    Private Sub ISubItemCallback_EndSubItemEdit(ByVal itemIndex As Long, ByVal subItemIndex As Long, ByVal mode As Long, ByVal ppc As IPropertyControl) Implements ISubItemCallback.EndSubItemEdit
+        If ppc Is Nothing Then
+            Err.ReturnHResult = E_POINTER
+            Exit Sub
+        End If
+        On Error Resume Next
+        Dim modified As BOOL
+        ppc.IsModified(modified)
+        If modified Then
+            Dim pPropertyValue As IPropertyValue
+            ppc.GetValue(IID_IPropertyValue, pPropertyValue)
+            If SUCCEEDED(Err.LastHresult) Then
+                Dim propertyValue As PROPVARIANT
+                PropVariantInit(propertyValue)
+                pPropertyValue.GetValue(propertyValue)
+                If SUCCEEDED(Err.LastHresult) Then
+                    Dim pBuffer As LongPtr
+                    If SUCCEEDED(PropVariantToStringAlloc(propertyValue, pBuffer)) AndAlso (pBuffer <> 0) Then
+                        LVSetItemText(itemIndex, subItemIndex, pBuffer)
+                        CoTaskMemFree(pBuffer)
+                    End If
+                    PropVariantClear(propertyValue)
+                End If
+            End If
+        End If
+        ppc.Destroy()
+        Err.ReturnHResult = Err.LastHresult
+    End Sub
+    
+    Private Sub ISubItemCallback_GetSubItemControl(ByVal itemIndex As Long, ByVal subItemIndex As Long, requiredInterface As UUID, ppObject As LongPtr) Implements ISubItemCallback.GetSubItemControl
+        'NOTE :: IN EXAMPLE, THIS CALLS BeginSubItemEdit, KEEP CODE IN SYNC!
+        If VarPtr(ppObject) = 0 Then
+            Err.ReturnHResult = E_POINTER
+            Exit Sub
+        End If
+        If subItemIndex <> 1 Then
+            Err.ReturnHResult = E_NOINTERFACE
+            Exit Sub
+        End If
+        
+        Dim hr As Long = E_NOINTERFACE
+        Dim pPropertyDescription As IPropertyDescription
+        Dim propertyValue As PROPVARIANT
+        Dim pPropertyValue As LongPtr = VarPtr(propertyValue)
+        
+        Select Case itemIndex
+            Case 0
+                hr = CoCreateInstance(CLSID_CInPlaceMLEditBoxControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Generic.String", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 1
+                hr = CoCreateInstance(CLSID_CCustomDrawPercentFullControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+            Case 2
+                hr = CoCreateInstance(CLSID_CRatingControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+            Case 3
+                If IsEqualIID(requiredInterface, IID_IDrawPropertyControl) Then
+                    hr = CoCreateInstance(CLSID_CStaticPropertyControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                Else
+                    hr = CoCreateInstance(CLSID_CInPlaceEditBoxControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                End If
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Generic.String", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 4, 5
+                hr = CoCreateInstance(CLSID_CBooleanControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Generic.Boolean", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 6
+                hr = CoCreateInstance(CLSID_CInPlaceCalendarControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Generic.DateTime", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 7
+                hr = CoCreateInstance(CLSID_CInPlaceDropListComboControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+                If pPropertyDescription Is Nothing Then
+                    PSGetPropertyDescriptionByName("System.Photo.MeteringMode", IID_IPropertyDescription, pPropertyDescription)
+                End If
+            Case 8
+                hr = CoCreateInstance(CLSID_CHyperlinkControl, Nothing, CLSCTX_INPROC_SERVER, requiredInterface, ppObject)
+        End Select
+        If SUCCEEDED(hr) Then
+            Dim pControl As IPropertyControlBase
+            vbaObjSetAddref(pControl, ppObject)
+            Dim themeAppName As String
+            Dim themeIDList As String
+            Dim pSubAppNameBuffer(299) As Integer
+            Dim pSubAppName As LongPtr = VarPtr(pSubAppNameBuffer(0))
+            Dim valueSubAppName As Integer = DCast(Of Integer)(GetPropW(hLV, StrPtr("#43281")))
+            If valueSubAppName Then
+                GetAtomNameW(valueSubAppName, VarPtr(pSubAppNameBuffer(0)), 300)
+                If (lstrlenW(pSubAppNameBuffer(0)) = 1) And (pSubAppNameBuffer(0) = Asc("$")) Then
+                    pSubAppNameBuffer(0) = 0
+                End If
+            Else
+                pSubAppName = 0
+            End If
+            themeAppName = LPWSTRtoStr(pSubAppName, False)
+            Dim pSubIDListBuffer(299) As Integer
+            Dim pSubIDList As LongPtr = VarPtr(pSubIDListBuffer(0))
+            Dim valueSubIDList As Integer = DCast(Of Integer)(GetPropW(hLV, StrPtr("#43280")))
+            If valueSubIDList Then
+                GetAtomNameW(valueSubIDList, VarPtr(pSubIDListBuffer(0)), 300)
+                If (lstrlenW(pSubIDListBuffer(0)) = 1) And (pSubIDListBuffer(0) = Asc("$")) Then
+                    pSubIDListBuffer(0) = 0
+                End If
+            Else
+                pSubIDList = 0
+            End If
+            themeIDList = LPWSTRtoStr(pSubIDList, False)
+            Dim hFont As LongPtr = SendMessage(hLV, WM_GETFONT, 0, ByVal 0)
+            Dim textColor As Long = DCast(Of Long)(SendMessage(hLV, LVM_GETTEXTCOLOR, 0, 0))
+            If textColor = CLR_NONE Then
+                textColor = GetSysColor(COLOR_WINDOWTEXT)
+            End If
+            Dim pBuffer As LongPtr = HeapAlloc(GetProcessHeap(), 0, (1024 + 1) * 2 /* sizeof(WCHAR) */)
+            If pBuffer Then
+                Dim item As LVITEMW
+                item.iSubItem = subItemIndex
+                item.cchTextMax = 1024
+                item.pszText = pBuffer
+                SendMessage(hLV, LVM_GETITEMTEXTW, itemIndex, item)
+                If (itemIndex = 1) Or (itemIndex = 2) Or (itemIndex = 7) Then
+                    Dim tmp As Variant
+                    ' PropVariantInit(tmp)
+                    InitPropVariantFromString(item.pszText, tmp)
+                    PropVariantChangeType(ByVal pPropertyValue, tmp, 0, VT_UI4)
+                    PropVariantClear(tmp)
+                ElseIf (itemIndex = 4) Or (itemIndex = 5) Then
+                    Dim tmp2 As Variant
+                    PropVariantInit(tmp2)
+                    InitPropVariantFromString(item.pszText, tmp2)
+                    PropVariantChangeType(ByVal pPropertyValue, tmp2, 0, VT_BOOL)
+                    PropVariantClear(tmp2)
+                ElseIf (itemIndex = 6) Then
+                    Dim tmp3 As Variant
+                    PropVariantInit(tmp3)
+                    InitPropVariantFromString(item.pszText, tmp3)
+                    PropVariantChangeType(ByVal pPropertyValue, tmp3, 0, VT_FILETIME)
+                    PropVariantClear(tmp3)
+                Else
+                    InitPropVariantFromStringPtr(item.pszText, ByVal pPropertyValue)
+                End If
+                HeapFree(GetProcessHeap(), 0, ByVal pBuffer)
+                pBuffer = 0
+            End If
+            
+            Dim pPropertyValueObj As IPropertyValue
+            Set pPropertyValueObj = New IPropertyValueImpl
+            pPropertyValueObj.InitValue(propertyValue)
+            If pPropertyDescription IsNot Nothing Then
+                pControl.Initialize(pPropertyDescription, 0)
+            End If
+            pControl.SetValue(pPropertyValueObj)
+            pControl.SetTextColor(textColor)
+            If hFont Then
+                pControl.SetFont(hFont)
+            End If
+            pControl.SetWindowTheme(StrPtr(themeAppName), StrPtr(themeIDList))
+            Set pPropertyDescription = Nothing
+        End If
+        Err.ReturnHResult = hr
+    End Sub
+    
+    Private Sub ISubItemCallback_OnInvokeVerb(ByVal itemIndex As Long, ByVal pVerb As LongPtr) Implements ISubItemCallback.OnInvokeVerb
+        MsgBox "Invoke verb on " & itemIndex & ": " & LPWSTRtoStr(pVerb, False)
+    End Sub
+
+    Private Function LVInsertItem(ByVal nMask As LVITEM_mask, ByVal nItem As Long, ByVal lpszItem As String, ByVal nState As LVITEM_state, ByVal nStateMask As LVITEM_state, ByVal nImage As Long, ByVal lParam As LongPtr) As Long
+        Dim item As LVITEM
+        item.Mask = nMask
+        item.iItem = nItem
+        item.iSubItem = 0
+        item.pszText = StrPtr(lpszItem)
+        item.State = nState
+        item.StateMask = nStateMask
+        item.iImage = nImage
+        item.lParam = lParam
+        Return CLng(SendMessage(hLV, LVM_INSERTITEM, 0, item))
+    End Function
+    Private Function LVSetItem(ByVal nItem As Long, ByVal nSubItem As Long, ByVal nMask As LVITEM_mask, ByVal lpszItem As LongPtr, _
+                        ByVal nImage As Long, ByVal nState As LVITEM_state, ByVal nStateMask As LVITEM_state, ByVal lParam As LongPtr) As BOOL
+        
+        Dim lvi As LVITEM
+        lvi.Mask = nMask
+        lvi.iItem = nItem
+        lvi.iSubItem = nSubItem
+        lvi.StateMask = nStateMask
+        lvi.State = nState
+        lvi.pszText = lpszItem
+        lvi.iImage = nImage
+        lvi.lParam = lParam
+        Return CLng(SendMessage(hLV, LVM_SETITEM, 0, lvi))
+        
+    End Function
+    Private Function LVSetItemText(ByVal nItem As Long, ByVal nSubItem As Long, ByVal lpszText As String) As BOOL
+        Return LVSetItem(nItem, nSubItem, LVIF_TEXT, StrPtr(lpszText), 0, 0, 0, 0)
+    End Function
+    Private Function LVSetItemText(ByVal nItem As Long, ByVal nSubItem As Long, ByVal lpszText As LongPtr) As BOOL
+        Return LVSetItem(nItem, nSubItem, LVIF_TEXT, lpszText, 0, 0, 0, 0)
+    End Function
+    
+    'This is broken in the current WDL:
+    [Description("Creates a PROPVARIANT of type VT_LPWSTR from a tB String")]
+    Public Function InitPropVariantFromStringPtr(ByVal psz As LongPtr, ByVal ppropvar As LongPtr) As Long
+        'This unfortunately isn't as easy as making a VT_BSTR Variant then calling VariantChangeType; that fails.
+        If ppropvar = 0 Then Return E_POINTER
+        Dim lpAlloc As LongPtr = CoTaskMemAlloc((lstrlenW(ByVal psz) + 1) * 2)
+        ZeroMemory ByVal lpAlloc, (lstrlenW(ByVal psz) + 1) * 2
+        CopyMemory ByVal lpAlloc, ByVal psz, lstrlenW(ByVal psz) * 2
+        CopyMemory ByVal ppropvar, VT_LPWSTR, 2
+        CopyMemory ByVal PointerAdd(ppropvar, 8), lpAlloc, LenB(Of LongPtr)
+        Return S_OK
+    End Function
+    
+End Class
+
+Class IPropertyValueImpl
+    Implements IPropertyValue
+    
+    Private Type properties
+        referenceCount As Long
+        propertyKey As PROPERTYKEY
+        propertyValue As PROPVARIANT
+    End Type
+    Private prop As properties
+    
+    Private Sub IPropertyValue_SetPropertyKey(propKey As PROPERTYKEY) Implements IPropertyValue.SetPropertyKey
+        prop.propertyKey = propKey
+    End Sub
+    
+    Private Sub IPropertyValue_GetPropertyKey(propKey As PROPERTYKEY) Implements IPropertyValue.GetPropertyKey
+        If VarPtr(propKey) = 0 Then
+            Err.ReturnHResult = E_POINTER
+            Exit Sub
+        End If
+        propKey = prop.propertyKey
+    End Sub
+    
+    Private Sub IPropertyValue_GetValue(pprop As PROPVARIANT) Implements IPropertyValue.GetValue
+        If VarPtr(pprop) = 0 Then
+            Err.ReturnHResult = E_POINTER
+            Exit Sub
+        End If
+        pprop = prop.propertyValue
+    End Sub
+    
+    Private Sub IPropertyValue_InitValue(pprop As PROPVARIANT) Implements IPropertyValue.InitValue
+        prop.propertyValue = pprop
+    End Sub
+    
+End Class
