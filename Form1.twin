@@ -4,11 +4,12 @@
 Class Form1
 #Region "Readme"
 /************************************************************************************************
-ListViewSubItemCtls v1.0
+ListViewSubItemCtls v1.1
 Undocumented ListView SubItem Controls Demo
 by Jon Johnson, porting a project by Timo Kunze.
 
 https://github.com/fafalone/ListViewSubItemControls
+Original C++: https://www.codeproject.com/Articles/35197/Undocumented-List-View-Features
 
 **Requirements** 
 - Windows 7+ (Vista could be supported by switching the IListView version, but it's not done 
@@ -35,6 +36,7 @@ followed by a hard crash. But the bottom line is now every control is working pe
 and 64bit! In future versions I'll explore the control types not used in Timo's demo.
 
 **Changelog**
+- v1.1 (22 June 2025) - Quick update to show they work great in Tile View too.
 - v1.0 (22 June 2025) - Initial release
 
 *************************************************************************************************/
@@ -47,8 +49,9 @@ and 64bit! In future versions I'll explore the control types not used in Timo's 
     Private Const sCol2 As String = "Column 3"
         
     Private hLV As LongPtr
-    Private ImageList As IImageList
-     
+    Private ImageListS As IImageList
+    Private ImageListL As IImageList
+    Private bTile As Boolean
     
     Private Sub Form_Load() Handles Form.Load
         Dim dwFlags As Long = WS_CHILD Or WS_VISIBLE Or WS_CLIPSIBLINGS Or WS_CLIPCHILDREN Or LVS_ICON Or LVS_SHOWSELALWAYS Or LVS_AUTOARRANGE Or LVS_ALIGNTOP
@@ -80,7 +83,20 @@ and 64bit! In future versions I'll explore the control types not used in Timo's 
     
     Private Sub Form_Unload(Cancel As Integer) Handles Form.Unload
         DestroyWindow hLV
-        Set ImageList = Nothing
+        Set ImageListS = Nothing
+        Set ImageListS = Nothing
+    End Sub
+    
+    Private Sub Command1_Click() Handles Command1.Click
+        If bTile Then
+            SendMessage(hLV, LVM_SETVIEW, LV_VIEW_DETAILS, ByVal 0&)
+            bTile = False
+            Command1.Caption = "Tile View"
+        Else
+            SendMessage(hLV, LVM_SETVIEW, LV_VIEW_TILE, ByVal 0&)
+            bTile = True
+            Command1.Caption = "Details View"
+        End If
     End Sub
     
     Private Sub InsertColumns()
@@ -106,9 +122,11 @@ and 64bit! In future versions I'll explore the control types not used in Timo's 
     End Sub
     
     Private Sub InsertItems()
-        SHGetImageList(SHIL_SMALL, IID_IImageList, ImageList)
-        ListView_SetImageList(hLV, ObjPtr(ImageList), LVSIL_SMALL)
-        
+        SHGetImageList(SHIL_SMALL, IID_IImageList, ImageListS)
+        SHGetImageList(SHIL_LARGE, IID_IImageList, ImageListL)
+        ListView_SetImageList(hLV, ObjPtr(ImageListS), LVSIL_SMALL)
+        ListView_SetImageList(hLV, ObjPtr(ImageListL), LVSIL_NORMAL)
+                
         Dim sItemText As String
         Dim itemCount As Long = 9
         Dim uCol(1) As Long
@@ -528,6 +546,7 @@ and 64bit! In future versions I'll explore the control types not used in Timo's 
         Return S_OK
     End Function
     
+     
 End Class
 
 Class IPropertyValueImpl
