@@ -59,7 +59,7 @@ and 64bit! In future versions I'll explore the control types not used in Timo's 
         
         hLV = CreateWindowEx(dwFlagsEx, WC_LISTVIEW, vbNullString, dwFlags, 0, 0, pbLV.ScaleWidth, pbLV.ScaleHeight, _
           pbLV.hWnd, 0, App.hInstance, ByVal 0)
-        
+         
         Dim dw As Long = LVS_EX_DOUBLEBUFFER Or LVS_EX_FULLROWSELECT
         SendMessage(hLV, LVM_SETEXTENDEDLISTVIEWSTYLE, ByVal dw, ByVal dw)
         SetWindowTheme(hLV, "Explorer", vbNullString)
@@ -84,7 +84,7 @@ and 64bit! In future versions I'll explore the control types not used in Timo's 
     Private Sub Form_Unload(Cancel As Integer) Handles Form.Unload
         DestroyWindow hLV
         Set ImageListS = Nothing
-        Set ImageListS = Nothing
+        Set ImageListL = Nothing
     End Sub
     
     Private Sub Command1_Click() Handles Command1.Click
