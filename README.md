@@ -1,4 +1,4 @@
-# ListViewSubItemControls v1.0
+# ListViewSubItemControls v1.1
 Undocumented ListView SubItem Controls Demo
 
 ![ScreenShot](https://github.com/user-attachments/assets/f3cf5881-e693-4367-a99e-0a3c702e30b6)
@@ -13,6 +13,12 @@ I'll no doubt be digging into the old code to find out exactly what I could have
 - Windows 7+ (Vista+ could be supported by switching the IListView version, but it's not done here in v1.0).
 - Windows Development Library for twinBASIC v9.1+
 - Common Controls 6.0 enabled by manifest
+
+**Updates**
+v1.1 (22 Jun 2025)
+Now supports toggling to Tiles view to show how they work great there too:
+![image](https://github.com/user-attachments/assets/4610bd77-b391-4e76-a4e6-dc4342f587b3)
+
 
 **How it works**
 This technique is based around the undocumented `ISubItemCallback` interface:
