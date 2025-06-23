@@ -10,17 +10,20 @@ This project has been my white whale. Back in 2015 I started a series of article
 I'll no doubt be digging into the old code to find out exactly what I could have possibly missed in all the other failed attempts, which only ever got as far as glitched rendering of one or two controls followed by a hard crash. But the bottom line is now every control is working perfectly! In both 32 and 64bit! In future versions I'll explore the control types not used in Timo's demo.
 
 **Requirements**
+
 - Windows 7+ (Vista+ could be supported by switching the IListView version, but it's not done here in v1.0).
 - Windows Development Library for twinBASIC v9.1+
 - Common Controls 6.0 enabled by manifest
 
 **Updates**
+
 v1.1 (22 Jun 2025)
 Now supports toggling to Tiles view to show how they work great there too:
 ![image](https://github.com/user-attachments/assets/4610bd77-b391-4e76-a4e6-dc4342f587b3)
 
 
 **How it works**
+
 This technique is based around the undocumented `ISubItemCallback` interface:
 
 ```vba
